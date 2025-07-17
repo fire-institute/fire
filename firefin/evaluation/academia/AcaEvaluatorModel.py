@@ -1,6 +1,20 @@
 import typing
 import pandas as pd
-from ..eva_utils import compute_ic, summarise_ic, generate_latex_code, ForwardReturns, QuantileReturns
+from ..eva_utils import (
+    compute_ic, 
+    summarise_ic, 
+    generate_latex_code, 
+    ForwardReturns, 
+    QuantileReturns,
+    single_sort_table1_latex, 
+    single_sort_table2_latex, 
+    single_sort_table3_latex,
+    fama_macbeth_latex,
+    regression_latex,
+    else1_latex,
+    else2_latex,
+    else3_latex
+)
 from ...core.algorithm.regression import least_square, RollingRegressor, BatchRegressionResult
 from ...common.config import logger
 from .anomaly_test import AnomalyTest
@@ -142,7 +156,6 @@ class AcaEvaluatorModel:
         pd.DataFrame
             A DataFrame containing IC values for each evaluation period.
         """
-        
         ic = compute_ic(self.factor, self.forward_returns, method = method)
         if plot:
             plots.plt_ic(ic, plot_dir = plot_dir)
@@ -271,3 +284,31 @@ class AcaEvaluatorModel:
         logger.info("Anomaly Test Completed")
 
         return results
+    
+    # TODO: Complete the comments about df and return
+    @staticmethod
+    def output_latex(df_dict: dict):
+        keys = ['table1', 'table2', 'table3', 'fama_macbeth', 'regression', 'else1', 'else2', 'else3']
+        str1 = single_sort_table1_latex(df1 = df_dict['df1'], df2 = df_dict['df2'])
+        str2 = single_sort_table2_latex(df = df_dict['df3'])
+        str3 = single_sort_table3_latex(df1 =df_dict['df4'], df2 = df_dict['df5'])
+        str4 = fama_macbeth_latex(
+            df1 = df_dict['df6'], 
+            df2 = df_dict['df7'], 
+            df3 = df_dict['df8'], 
+            df4 = df_dict['df9']
+        )
+        str5 = regression_latex(
+            df1 = df_dict['df10'], 
+            df2 = df_dict['df11'], 
+            df3 = df_dict['df12'], 
+            df4 = df_dict['df13']
+        )
+        str6 = else1_latex(df1 = df_dict['df14'], df2 = df_dict['df15'])
+        str7 = else2_latex(df = df_dict['df16'])
+        str8 = else3_latex(df = df_dict['df17'])
+        values = [str1, str2, str3, str4, str5, str6, str7, str8]
+
+        result_dict = dict(zip(keys, values))
+        return result_dict
+
