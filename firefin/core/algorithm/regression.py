@@ -600,12 +600,16 @@ class RollingRegressor:
         # squeeze if table
         if is_table:
             # columns
-            alpha = alpha[-1]
+            if transpose:  # axis = 1（横截面回归）：取按“时间”的序列
+                alpha = alpha[-1]  # 长度 = 天数（m）
+                alpha_t = alpha_t[-1]
+            else:  # axis = 0：取“最后一个时间点”的截面（按股票）
+                alpha = alpha[-1]  # 长度 = 股票数（m）
+                alpha_t = alpha_t[-1]
             r2 = r2[-1] 
             r2_adj = r2_adj[-1]
             # keys x columns
             beta = beta[:, -1]
-            alpha_t = alpha_t[-1]
             tvalue = tvalue[:, -1]
         # maybe transpose back
         if transpose:
@@ -613,8 +617,13 @@ class RollingRegressor:
             tvalue = self._transpose_or_none(tvalue)
         # wrap dataframe if possible
         if is_table:
-            alpha = pd.Series(alpha, index=index if transpose else columns, name="alpha")
-            alpha_t = pd.Series(alpha_t, index=index if transpose else columns, name="alpha_t")
+            if transpose:  # axis = 1：返回时序 Series（索引=时间）
+                alpha = pd.Series(alpha, index=index, name="alpha")
+                alpha_t = pd.Series(alpha_t, index=index, name="alpha_t")
+            else:  # axis = 0：返回 1×N DataFrame（最后一个时间点 × 股票）
+                last_idx = index[-1] if index is not None else (n - 1)
+                alpha = pd.DataFrame([alpha], index=[last_idx], columns=columns)
+                alpha_t = pd.DataFrame([alpha_t], index=[last_idx], columns=columns)
             r2 = pd.Series(r2, index=index if transpose else columns, name="r2") 
             r2_adj = pd.Series(r2_adj, index=index if transpose else columns, name="r2_adj")
             if transpose:

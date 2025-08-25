@@ -422,7 +422,11 @@ def double_sort_returns_independent(
         # 组合成 'i_j' 标签
         labels = pd.DataFrame(index=size.index, columns=size.columns, dtype=object)
         mask = g1.notna() & g2.notna()
-        labels[mask] = g1[mask].astype(int).astype(str) + "_" + g2[mask].astype(int).astype(str)
+
+        g1s = g1.where(mask).astype("Int64").astype(str)  # 用可空整数，允许 NA
+        g2s = g2.where(mask).astype("Int64").astype(str)
+
+        labels[mask] = (g1s + "_" + g2s)[mask]
         return labels
 
     assert return_adj.index.equals(size.index) and return_adj.columns.equals(size.columns), "return_adj/size mismatch"

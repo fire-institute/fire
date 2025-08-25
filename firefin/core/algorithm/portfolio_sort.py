@@ -10,7 +10,7 @@ import typing
 import numpy as np
 import pandas as pd
 from .newey_west_ttest_1samp import NeweyWestTTest
-from ..eva_utils import factor_to_quantile, factor_to_quantile_dependent_double_sort
+from ..eva_utils import factor_to_quantile, factor_to_quantile_dependent_double_sort,double_sort_returns_independent
 from ..eva_utils import _compute_quantile_df, _compute_weighted_quantile_df
 from ..eva_utils import ForwardReturns, QuantileReturns
 

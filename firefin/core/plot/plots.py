@@ -11,6 +11,7 @@ import statsmodels.api as sm
 from matplotlib.gridspec import GridSpec
 from numba import njit
 from scipy import stats
+from matplotlib.dates import AutoDateLocator, ConciseDateFormatter
 
 from ...core.eva_utils import PeriodType, IC, QuantileReturns
 

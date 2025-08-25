@@ -80,6 +80,7 @@ def newey_west_t(residuals, X, beta, use_correction=True):
 class NeweyWestTest:
     @staticmethod
     def newey_west_t_test(result: BatchRegressionResult, X: list[pd.Series]):
+        X = [s.fillna(0) for s in X]
         factor_names = ["alpha"] + [s.name for s in X]
         stocks_names = result.alpha.columns
         residuals = result.residuals

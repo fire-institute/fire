@@ -9,7 +9,6 @@ from ...core.plot.table_and_latex_code import latex_table
 from ...core.plot.plots import plot_grs_pval, plot_cumulative_alpha
 
 
-
 class AcaIndirectEvaluator(AcaEvaluatorModel):
 
     def __init__(self,
@@ -48,14 +47,13 @@ class AcaIndirectEvaluator(AcaEvaluatorModel):
             factor2: list[pd.Series] | None = None,
     ):
 
-
-      """
+        """
             Evaluate the relationship between the portfolio factor returns and a set of
             predefined or custom risk factors using rolling regressions.
 
-            This method applies different factor models (CAPM, Fama–French 3-factor, 
-            Fama–French 3-factor with momentum, Fama–French 5-factor, or a custom set 
-            of user-supplied factors) to estimate factor loadings, t-statistics, and 
+            This method applies different factor models (CAPM, Fama–French 3-factor,
+            Fama–French 3-factor with momentum, Fama–French 5-factor, or a custom set
+            of user-supplied factors) to estimate factor loadings, t-statistics, and
             adjusted R² for each factor portfolio stored in `self.factor_portfolio`.
 
             Parameters
@@ -74,7 +72,7 @@ class AcaIndirectEvaluator(AcaEvaluatorModel):
             Returns
             -------
             coefficient_df : pd.DataFrame
-                Final regression coefficients for each portfolio (last observation), 
+                Final regression coefficients for each portfolio (last observation),
                 including alpha and factor betas.
                 Index: portfolio names, Columns: ["alpha", factor names]
             statistics_df : pd.DataFrame
@@ -84,7 +82,8 @@ class AcaIndirectEvaluator(AcaEvaluatorModel):
                 Adjusted R² values for each portfolio regression.
                 Index: portfolio names, Name: "r2_adj"
 
-      """
+            """
+
         factor_names = [s.name for s in self.factor_portfolio ]
 
         if self.stock_value is None and mode == "ff3":
@@ -192,13 +191,13 @@ class AcaIndirectEvaluator(AcaEvaluatorModel):
             plt : bool = True,
     ):
 
-      """
-            Calculate and optionally plot the cumulative alpha of each factor portfolio 
+        """
+            Calculate and optionally plot the cumulative alpha of each factor portfolio
             over time based on a specified asset pricing model.
 
-            This method sequentially estimates alpha values from time 0 up to each point 
-            in time (starting from `starting_point` observations) using full-sample regressions 
-            of factor portfolio returns on chosen risk factors. The cumulative alpha series 
+            This method sequentially estimates alpha values from time 0 up to each point
+            in time (starting from `starting_point` observations) using full-sample regressions
+            of factor portfolio returns on chosen risk factors. The cumulative alpha series
             shows how alpha evolves as more data is included in the regression.
 
             Parameters
@@ -211,24 +210,24 @@ class AcaIndirectEvaluator(AcaEvaluatorModel):
                 - "ff5"        : Fama–French 5-factor model
                 - "customize"  : Use user-specified factors from `factor2`
             factor2 : list of pd.Series, optional
-                Required only when `mode="customize"`. A list of factor return series 
+                Required only when `mode="customize"`. A list of factor return series
                 with datetime index aligned to portfolio returns.
             starting_point : int, default 20
-                Minimum number of observations before starting alpha calculation. 
+                Minimum number of observations before starting alpha calculation.
                 Cumulative alpha is computed from this point onwards.
             plt : bool, default True
-                If True, plot the cumulative alpha series for each portfolio using 
+                If True, plot the cumulative alpha series for each portfolio using
                 `plot_cumulative_alpha`. If False, return the series instead.
 
             Returns
             -------
             list of pd.Series or None
-                - If `plt=False`: a list of cumulative alpha series, each named after 
+                - If `plt=False`: a list of cumulative alpha series, each named after
                   its corresponding factor portfolio, indexed by date.
                 - If `plt=True`: no return value; plots are displayed instead.
 
-        """
-      
+            """
+
         if self.stock_value is None and mode == "ff3":
             raise ValueError("You must provide stock_value when switch mode ff3.")
         elif (self.mom_signal is None) and mode == "ff3_mom":
@@ -416,14 +415,14 @@ class AcaIndirectEvaluator(AcaEvaluatorModel):
 
     def summarize_returns( self, excess_ret:list[pd.Series], mode: str = "daily") -> pd.DataFrame:
         """
-        mode ：
-          - daily:  "daily", "D"
-          - monthly:  "monthly", "M"
-          - yealy:  "annual", "yearly", "Y", "A"
-        
-        return 
-        -------
-        DataFrame，index=Series names，columns=["mean return", "std"]。
+        mode 取值：
+          - 日度:  "daily", "D", "日度"
+          - 月度:  "monthly", "M", "月度"
+          - 年度:  "annual", "yearly", "Y", "A", "年度"
+
+        假设 Series 的取值是简单收益率（如 0.01 表示 1%）。
+        月/年收益通过期内复利聚合： (1+r1)*(1+r2)*... - 1
+        返回 DataFrame，index=Series 名称，columns=["平均收益", "收益标准差"]。
         """
         freq_map = {
             "daily": "D", "D": "D",
@@ -439,13 +438,13 @@ class AcaIndirectEvaluator(AcaEvaluatorModel):
         rows = []
 
         for i, s in enumerate(excess_ret):
-            
+            # 确保是 DatetimeIndex 并按时间排序
             if not isinstance(s.index, pd.DatetimeIndex):
                 s = s.copy()
                 s.index = pd.to_datetime(s.index)
             s = s.sort_index().dropna()
 
-            
+            # 按选择的频率得到该频率下的收益序列
             if target == "D":
                 r = s
             else:
@@ -459,36 +458,37 @@ class AcaIndirectEvaluator(AcaEvaluatorModel):
         return out
 
     def export_evaluation_table(self, mode: str = "daily", customized_factor: list[pd.Series] | None = None) :
-        """
-        Generate a LaTeX-formatted evaluation table summarizing portfolio performance
-        and factor regression results.
-
-        This method computes excess returns for each factor portfolio, summarizes
-        return statistics, and evaluates factor loadings under multiple models
-        (CAPM, Fama–French 3-factor with momentum, and optionally a user-defined
-        factor set). It outputs a combined LaTeX table containing coefficients,
-        t-values, and adjusted R² values for each model, along with portfolio
-        return statistics.
-
-        Parameters
-        ----------
-        mode : {"daily", "monthly", ...}, default "daily"
-            Frequency mode for summarizing returns. Passed to `summarize_returns`.
-        customized_factor : list of pd.Series, optional
-            User-specified factor return series for an additional custom factor
-            regression. Only used when provided. Each series should have a datetime
-            index aligned with portfolio returns.
-
-        Returns
-        -------
-        str
-            A LaTeX-formatted string generated by `latex_table` containing:
-            - Summary statistics of excess returns
-            - CAPM regression results (coefficients, t-values, adjusted R²)
-            - Fama–French 3-factor with momentum regression results
-            - Optional custom factor regression results (if provided)
 
         """
+            Generate a LaTeX-formatted evaluation table summarizing portfolio performance
+            and factor regression results.
+
+            This method computes excess returns for each factor portfolio, summarizes
+            return statistics, and evaluates factor loadings under multiple models
+            (CAPM, Fama–French 3-factor with momentum, and optionally a user-defined
+            factor set). It outputs a combined LaTeX table containing coefficients,
+            t-values, and adjusted R² values for each model, along with portfolio
+            return statistics.
+
+            Parameters
+            ----------
+            mode : {"daily", "monthly", ...}, default "daily"
+                Frequency mode for summarizing returns. Passed to `summarize_returns`.
+            customized_factor : list of pd.Series, optional
+                User-specified factor return series for an additional custom factor
+                regression. Only used when provided. Each series should have a datetime
+                index aligned with portfolio returns.
+
+            Returns
+            -------
+            str
+                A LaTeX-formatted string generated by `latex_table` containing:
+                - Summary statistics of excess returns
+                - CAPM regression results (coefficients, t-values, adjusted R²)
+                - Fama–French 3-factor with momentum regression results
+                - Optional custom factor regression results (if provided)
+
+            """
 
         names = [s.name for s in self.factor_portfolio]
         excess_ret = [s - self.risk_free_rate for s in self.factor_portfolio]
