@@ -565,9 +565,9 @@ class RollingRegressor:
 
         result_gen = Parallel(n_jobs=n_jobs, verbose=verbose, return_as="generator")(
             calculate_window(
-                x_wind=x[:, i : i + window],
-                y_wind=y[i : i + window],
-                w_wind=None if w is None else w[i : i + window],
+                x_wind=x[:, i: i + window],
+                y_wind=y[i: i + window],
+                w_wind=None if w is None else w[i: i + window],
                 m1=m1,
                 m2=m2,
                 m3=m3,

@@ -4,26 +4,26 @@ import numpy as np
 import pandas as pd
 
 def latex_table(
-    df1: pd.DataFrame,
-    df1_r2: Optional[pd.Series],
-    df2: pd.DataFrame,
-    df2_r2: Optional[pd.Series],
+    df1: Optional[pd.DataFrame] = None,
+    df1_r2: Optional[pd.Series] = None,
+    df2: Optional[pd.DataFrame] = None,
+    df2_r2: Optional[pd.Series] = None,
     customize_factor: Optional[pd.DataFrame] = None,
     customize_r2: Optional[pd.Series] = None,
-    model_names: Tuple[str, str, Optional[str]] = ("CAPM", "4-Factor", None),
+    model_names: Tuple[Optional[str], Optional[str], Optional[str]] = ("CAPM", "4-Factor", None),
     custom_name: str = "Custom",
     coef_digits: int = 2,
     t_digits: int = 2,
     r2_digits: int = 3,
     excess_df: Optional[pd.DataFrame] = None,
     excess_name: str = "Excess Return",
-    excess_cols: Tuple[str, str] = ("mean daily excess_ret", "std"),
+    excess_cols: Tuple[str, str] = ("mean excess_ret", "std"),
 ) -> str:
     """
     LaTeX regression table：
-      - factor block: Factor (coefficient/t in parentheses) + Adj R^2 (provided by an independent Series)
-      - customized factor block: Factor (coefficient/t in parentheses) + Adj R^2 (provided by an independent Series)
-      - Optional: Excess Return block (two columns: mean/std)
+      - model block(s): Factor (coefficient/t in parentheses) + Adj R^2 (provided by an independent Series)
+        * 支持 customize_factor、df1、df2 三个模型块，三者均为可选；传入几个就渲染几个。
+      - Excess Return block（两列 mean/std），若提供则固定放在最左边。
     """
 
     def _escape_tex(s: str) -> str:
@@ -97,15 +97,7 @@ def latex_table(
     blocks = []
     names: Sequence[str] = []
 
-
-    if customize_factor is not None:
-        _dfc = _normalize_df(customize_factor)
-        _r2c = _normalize_s(customize_r2)
-        fc = _parse_columns(_dfc)
-        blocks.append(("model", _dfc, fc, _r2c))
-        names.append(model_names[2] if len(model_names) > 2 and model_names[2] else custom_name)
-
-
+    # 1) excess（若提供则固定放最前）
     if excess_df is not None:
         _dfe = _normalize_df(excess_df)
         lcol, rcol = excess_cols
@@ -115,27 +107,45 @@ def latex_table(
         blocks.append(("excess", _dfe, (lcol, rcol), None))
         names.append(excess_name)
 
+    # 2) customize（可选）
+    if customize_factor is not None:
+        _dfc = _normalize_df(customize_factor)
+        _r2c = _normalize_s(customize_r2)
+        fc = _parse_columns(_dfc)
+        blocks.append(("model", _dfc, fc, _r2c))
+        names.append(model_names[2] if len(model_names) > 2 and model_names[2] else custom_name)
 
-    _df1 = _normalize_df(df1); _r2_1 = _normalize_s(df1_r2); f1 = _parse_columns(_df1)
-    blocks.append(("model", _df1, f1, _r2_1)); names.append(model_names[0] or "Model 1")
+    # 3) df1（可选）
+    if df1 is not None:
+        _df1 = _normalize_df(df1)
+        _r2_1 = _normalize_s(df1_r2)
+        f1 = _parse_columns(_df1)
+        blocks.append(("model", _df1, f1, _r2_1))
+        names.append(model_names[0] or "Model 1")
 
+    # 4) df2（可选）
+    if df2 is not None:
+        _df2 = _normalize_df(df2)
+        _r2_2 = _normalize_s(df2_r2)
+        f2 = _parse_columns(_df2)
+        blocks.append(("model", _df2, f2, _r2_2))
+        names.append(model_names[1] or "Model 2")
 
-    _df2 = _normalize_df(df2); _r2_2 = _normalize_s(df2_r2); f2 = _parse_columns(_df2)
-    blocks.append(("model", _df2, f2, _r2_2)); names.append(model_names[1] or "Model 2")
+    if not blocks:
+        raise ValueError("No content to render: please provide at least one of df1/df2/customize_factor/excess_df.")
 
-
-    all_index: list[str] = []
+    # 收集所有 index（模型块的行与 R^2 的行）
+    all_index: List[str] = []
     for kind, df, _, r2s in blocks:
         for idx in df.index.tolist():
             if idx not in all_index:
                 all_index.append(idx)
-
         if isinstance(r2s, pd.Series):
             for idx in r2s.index.tolist():
                 if idx not in all_index:
                     all_index.append(idx)
 
-
+    # 表头分组规格
     group_specs = []
     for nm, (kind, df, spec, r2s) in zip(names, blocks):
         if kind == "model":
@@ -145,7 +155,7 @@ def latex_table(
             subcols = [lcol, rcol]
         group_specs.append((nm, subcols))
 
-
+    # 构造表头
     col_specs = ["l"]
     first_line = ["Portfolio"]
     cmid_segments = []
@@ -168,6 +178,7 @@ def latex_table(
         r"\midrule",
     ]
 
+    # 构造主体
     body_lines = []
     for idx in all_index:
         row_cells = [str(idx)]
@@ -178,7 +189,6 @@ def latex_table(
                     v = s.get(sub.get("coeff"), np.nan)
                     t = s.get(sub.get("tvalue"), np.nan)
                     row_cells.append(_make_cell(v, t))
-
                 r2_val = np.nan
                 if isinstance(r2s, pd.Series):
                     r2_val = r2s.get(str(idx), np.nan)

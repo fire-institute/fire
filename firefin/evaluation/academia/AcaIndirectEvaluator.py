@@ -9,16 +9,13 @@ from ...core.plot.table_and_latex_code import latex_table
 from ...core.plot.plots import plot_grs_pval, plot_cumulative_alpha
 
 
-class AcaIndirectEvaluator(AcaEvaluatorModel):
+class AcaIndirectEvaluator():
 
     def __init__(self,
                  factor_portfolio: list[pd.Series],
-                 return_adj: pd.DataFrame,
-                 time_series_window: int = 60,
-                 all_time_series_regression: bool = True,
-                 *,
-                 risk_free_rate: pd.Series,
-                 stock_size:pd.DataFrame, #market cap
+                 return_adj: pd.DataFrame| None = None,
+                 risk_free_rate: pd.Series| None = None,
+                 stock_size:pd.DataFrame| None = None, #market cap
                  stock_value:pd.DataFrame| None = None, #bm value
                  op:pd.DataFrame| None = None, #operating profitability
                  ag:pd.DataFrame| None = None, #asset growth
@@ -26,12 +23,10 @@ class AcaIndirectEvaluator(AcaEvaluatorModel):
                  n_jobs: int = 10,
                  verbose: int = 0):
 
-        super().__init__(factor_portfolio=factor_portfolio,
-                         return_adj=return_adj,
-                         time_series_window=time_series_window,
-                         all_time_series_regression=all_time_series_regression,
-                         n_jobs=n_jobs,
-                         verbose=verbose)
+        self.factor_portfolio = factor_portfolio
+        self.return_adj = return_adj
+        self.n_jobs = n_jobs
+        self.verbose = verbose
 
         self.risk_free_rate = risk_free_rate
         self.stock_size = stock_size
@@ -45,6 +40,8 @@ class AcaIndirectEvaluator(AcaEvaluatorModel):
             self,
             mode: Literal["capm", "ff3", "ff3_mom", "ff5", "customize"] = "capm",
             factor2: list[pd.Series] | None = None,
+            cov_type: str | None = None,
+            cov_kwds: dict | None = None,
     ):
 
         """
@@ -68,6 +65,14 @@ class AcaIndirectEvaluator(AcaEvaluatorModel):
             factor2 : list of pd.Series, optional
                 A list of factor return series to be used only when `mode="customize"`.
                 Each series should have a datetime index aligned with portfolio returns.
+            cov_type: str | None, optional
+            The covariance estimator, default is None.
+            - If None: use the default homoskedastic standard errors.
+            - If "HAC": Newey–West heteroskedasticity-and-autocorrelation robust SE.
+            - Other options supported by statsmodels (e.g. "HC0", "HC1", …).
+            cov_kwds: dict | None, optional
+                The keyword arguments for the covariance estimator, default is None.
+                For Newey–West, you’d typically pass `{"maxlags": L}` to control lag length.
 
             Returns
             -------
@@ -143,7 +148,7 @@ class AcaIndirectEvaluator(AcaEvaluatorModel):
             customized_factor_arr = np.stack(
                 [f.values.reshape(-1, 1) for f in customized_factor_list], axis=0
             )
-            res = RollingRegressor(x=customized_factor_arr, y=factor_excess_ret).fit(window=None)
+            res = RollingRegressor(x=customized_factor_arr, y=factor_excess_ret).fit(window=None,cov_type=cov_type,cov_kwds=cov_kwds)
 
 
             col_names = ["alpha"] + [s.name for s in customized_factor_list]
@@ -412,52 +417,63 @@ class AcaIndirectEvaluator(AcaEvaluatorModel):
         else:
             return grs_pval_series
 
-
-    def summarize_returns( self, excess_ret:list[pd.Series], mode: str = "daily") -> pd.DataFrame:
+    def summarize_returns(
+            self,
+            excess_ret: list[pd.Series],
+            mode: str = "daily",
+            *,
+            values_are_percent: bool = False,
+    ) -> pd.DataFrame:
         """
-        mode 取值：
-          - 日度:  "daily", "D", "日度"
-          - 月度:  "monthly", "M", "月度"
-          - 年度:  "annual", "yearly", "Y", "A", "年度"
+        mode ：
+          - daily:  "daily", "D"
+          - monthly:  "monthly", "M", "ME"
+          - yearly  "annual", "yearly", "Y", "A", "YE"
 
-        假设 Series 的取值是简单收益率（如 0.01 表示 1%）。
-        月/年收益通过期内复利聚合： (1+r1)*(1+r2)*... - 1
-        返回 DataFrame，index=Series 名称，columns=["平均收益", "收益标准差"]。
+        return：index=Series.name，columns=["mean excess_ret", "std"]
         """
+        import pandas as pd
+
         freq_map = {
             "daily": "D", "D": "D",
-            "monthly": "M", "M": "M",
-            "annual": "Y", "yearly": "Y", "Y": "Y", "A": "Y",
+            "monthly": "ME", "M": "ME", "ME": "ME",
+            "annual": "YE", "yearly": "YE", "Y": "YE", "A": "YE", "YE": "YE",
         }
         if mode not in freq_map:
             raise ValueError(f"no such mode: {mode}")
-
-        names = [s.name for s in excess_ret]
-
         target = freq_map[mode]
-        rows = []
 
-        for i, s in enumerate(excess_ret):
-            # 确保是 DatetimeIndex 并按时间排序
+        rows, names = [], [s.name for s in excess_ret]
+
+        for s in excess_ret:
             if not isinstance(s.index, pd.DatetimeIndex):
                 s = s.copy()
-                s.index = pd.to_datetime(s.index)
-            s = s.sort_index().dropna()
+                if isinstance(s.index, pd.PeriodIndex):
+                    s.index = s.index.to_timestamp(how="end")
+                else:
+                    s.index = pd.to_datetime(s.index)
 
-            # 按选择的频率得到该频率下的收益序列
+            s = s.sort_index().dropna()
+            if values_are_percent:
+                s = s / 100.0
             if target == "D":
                 r = s
             else:
                 r = s.resample(target).apply(lambda x: (1 + x).prod() - 1)
+            rows.append({
+                "mean excess_ret": r.mean(),
+                "std": r.std(ddof=1),
+            })
 
+        return pd.DataFrame(rows, index=names)
 
-            mean_excess_ret = "mean " + mode + " excess_ret"
-            rows.append({mean_excess_ret: r.mean(), "std": r.std(ddof=1)})
-
-        out = pd.DataFrame(rows, index=names)
-        return out
-
-    def export_evaluation_table(self, mode: str = "daily", customized_factor: list[pd.Series] | None = None) :
+    def export_evaluation_table(self,
+                                mode: Literal["capm","all","customize"] = "customize",
+                                period: str = "daily",
+                                customized_factor: list[pd.Series] | None = None,
+                                cov_type: str|None = None,
+                                cov_kwds: dict | None = None,
+                                ) :
 
         """
             Generate a LaTeX-formatted evaluation table summarizing portfolio performance
@@ -491,22 +507,54 @@ class AcaIndirectEvaluator(AcaEvaluatorModel):
             """
 
         names = [s.name for s in self.factor_portfolio]
-        excess_ret = [s - self.risk_free_rate for s in self.factor_portfolio]
-        summarize_returns = self.summarize_returns(excess_ret, mode=mode)
+        summarize_returns = self.summarize_returns(self.factor_portfolio, mode=period)
         summarize_returns.index = names
 
-        mkt_df, mkt_stats_df, mkt_r2_adj  = self.evaluate_by_other_factors(mode="capm")
-        ff4_df, ff4_stats_df, ff4_r2_adj = self.evaluate_by_other_factors(mode="ff3_mom")
-        mkt = stitch_coeff_tvalue(mkt_df, mkt_stats_df)
 
-        ff4 = stitch_coeff_tvalue(ff4_df, ff4_stats_df)
 
-        if customized_factor is not None:
-            customized_factor_df, customized_factor_stats_df, customized_factor_r2_adj = self.evaluate_by_other_factors(mode="customize", factor2=customized_factor)
+        if mode == "customize":
+            if customized_factor is None:
+                raise ValueError(f"customize mode requires customize_factors")
+            mkt = None
+            mkt_r2_adj = None
+            ff4 = None
+            ff4_r2_adj = None
+            customized_factor_df, customized_factor_stats_df, customized_factor_r2_adj = self.evaluate_by_other_factors(mode="customize",
+                                                                                                                        factor2=customized_factor,
+                                                                                                                        cov_type=cov_type,
+                                                                                                                        cov_kwds=cov_kwds,
+                                                                                                                        )
             customized_factor = stitch_coeff_tvalue(customized_factor_df, customized_factor_stats_df)
+        elif mode == "all":
+            if (self.return_adj is None) or (self.stock_size is None) or (self.mom_signal is None):
+                raise ValueError(f"capm requires return_adj, stock_size, mom_signal")
+            mkt_df, mkt_stats_df, mkt_r2_adj = self.evaluate_by_other_factors(mode="capm",cov_type=cov_type, cov_kwds=cov_kwds)
+            ff4_df, ff4_stats_df, ff4_r2_adj = self.evaluate_by_other_factors(mode="ff3_mom",cov_type=cov_type, cov_kwds=cov_kwds)
+            mkt = stitch_coeff_tvalue(mkt_df, mkt_stats_df)
+            ff4 = stitch_coeff_tvalue(ff4_df, ff4_stats_df)
+            if customized_factor is None:
+                customized_factor = None
+                customized_factor_r2_adj = None
+            else:
+                customized_factor_df, customized_factor_stats_df, customized_factor_r2_adj = self.evaluate_by_other_factors(
+                    mode="customize", factor2=customized_factor,cov_type=cov_type, cov_kwds=cov_kwds)
+                customized_factor = stitch_coeff_tvalue(customized_factor_df, customized_factor_stats_df)
+        elif mode == "capm":
+            if (self.return_adj is None) or (self.stock_size is None):
+                raise ValueError(f"capm requires return_adj and stock_size")
+            mkt_df, mkt_stats_df, mkt_r2_adj = self.evaluate_by_other_factors(mode="capm",cov_type=cov_type, cov_kwds=cov_kwds)
+            mkt = stitch_coeff_tvalue(mkt_df, mkt_stats_df)
+            ff4 = None
+            ff4_r2_adj = None
+            if customized_factor is None:
+                customized_factor = None
+                customized_factor_r2_adj = None
+            else:
+                customized_factor_df, customized_factor_stats_df, customized_factor_r2_adj = self.evaluate_by_other_factors(
+                    mode="customize", factor2=customized_factor,cov_type=cov_type, cov_kwds=cov_kwds)
+                customized_factor = stitch_coeff_tvalue(customized_factor_df, customized_factor_stats_df)
         else:
-            customized_factor = None
-            customized_factor_r2_adj = None
+            raise ValueError(f"no such mode: {mode}")
 
         return latex_table(df1=mkt,df1_r2=mkt_r2_adj,
                            df2=ff4,df2_r2=ff4_r2_adj,
