@@ -1,8 +1,15 @@
+---
+title: Evaluate Industrial Factor
+permalink: /evaluate/industrial-factor/
+nav_order: 6.2
+parent: Evaluate Factor
+---
+
 ## Evaluation of Industrial Factors 
 
 #### Typical Workflow (copy-paste ready)
 
-```Python
+```python
 start_date = '2010-01-01'
 end_date   = '2023-03-31'
 #%%
@@ -51,7 +58,7 @@ df_qr = mng.get_quantile_returns(5)
 
 Example:
 
-```Python
+```python
 # Set the backtest period
 start_date = '2019-01-01'
 end_date   = '2023-03-31'
@@ -78,7 +85,7 @@ fr = compute_forward_returns(open_price.shift(-1), [1, 5, 10])  # returns a dict
 
 ### Step 2. Prepare the Factor (T×N)
 
-```Python
+```python
 # Construct a factor (shown here just for demonstration; the factor format is a T×N pd.DataFrame)
 def ts_corr(x, y, window=10):
     """
@@ -96,7 +103,7 @@ factor = ts_corr(close_price, volume, 20)
 
 `Evaluator` wraps the core capabilities of `eva_utils` into two out-of-the-box tasks—IC and quantile portfolio returns—and plots them automatically.
 
-```Python
+```python
 from firefin.evaluation.industry.evaluator import Evaluator
 # Initialize the evaluator class; provide two parameters: the factor DataFrame `factor` and the factor’s forward returns `fr`
 evaluator = Evaluator(factor, fr)
@@ -104,12 +111,12 @@ evaluator = Evaluator(factor, fr)
 
 Get IC-related test metrics for this factor:
 
-```Python
+```python
 evaluator.get_ic(method="spearman", plot=True) 
 # methods: Spearman/Kendall/Pearson; the most common is Spearman
 ```
 
-![img](https://ncnpoz56ei72.feishu.cn/space/api/box/stream/download/asynccode/?code=ODg3MjA3NmU1YjBiYjJlZjhlNmIwZmQ5ZTZjMTlkMTlfYUhqQ0ZFVEczQXdBZWVFZFJURzlqbkpTTkl1QnU1WU5fVG9rZW46VkJtY2IzQUEyb3FKTUF4aHp2SWNlWlY1bnhoXzE3NTYzNTE4Mjg6MTc1NjM1NTQyOF9WNA)
+![img](/assets/images/industrial_ic.jpg)
 
 - IC time series plots (the more stable the better; high IR, high proportion > 0; strong factors typically have average RankIC > 0).
 - Top-left three plots: 20-day moving averages of the IC between the factor values and the 1-, 5-, and 10-day forward returns.
@@ -119,12 +126,12 @@ evaluator.get_ic(method="spearman", plot=True)
 
 Get the factor’s grouped return series metrics:
 
-```Python
+```python
 # Get the factor’s quantile return backtest data
 df_qr = evaluator.get_quantile_returns(5)
 ```
 
-![img](https://ncnpoz56ei72.feishu.cn/space/api/box/stream/download/asynccode/?code=M2ZmYTFjYjFmYzk5MzI1M2M1ZDIwMGViNDMwMDFkNmFfVXNUWThXa0diQXVJYkdEZEJrVFpKZDB0am15U3ZCc2ZfVG9rZW46VFNBcmJwcE9Yb2Zab054eGw2ZWN1Rm9wbmpoXzE3NTYzNTE4Mjg6MTc1NjM1NTQyOF9WNA)
+![img](/assets/images/industrial_qr.jpg)
 
 This figure shows the factor’s quantile returns.
 
@@ -148,7 +155,7 @@ Used to compute forward returns for assets under different holding periods.
 - Supports multiple holding periods (e.g., 1, 5, 10, 20 days)
 - Uses log returns and then converts to simple returns
 
-```Python
+```python
 # Compute quantile returns for a value factor
 value_factor = calculate_value_factor()  # assume this computes the value factor
 forward_returns = compute_forward_returns(close_prices, [1, 5, 20])
@@ -165,7 +172,7 @@ This is a core function in factor investing, used to compute quantile returns af
 - Supports weighting (e.g., market-cap weighting)
 - Supports multiple holding periods
 
-```Python
+```python
 # 5-quantile analysis
 quantile_returns = compute_quantile_returns(value_factor, forward_returns, quantiles=5)
 
@@ -193,7 +200,7 @@ Description:
 - Uses median absolute deviation (MAD) to identify outliers
 - More robust than the mean–standard deviation method; less sensitive to extreme values
 
-```Python
+```python
 # Handle outliers using the MAD method
 cleaned_factor = Winsorizer.MAD_winsorization(factor_exposure, scaled=True, k=3)
 ```
@@ -211,7 +218,7 @@ Description:
 - Uses mean ± K×standard deviation as truncation bounds
 - A classic statistical outlier handling method
 
-```Python
+```python
 # 3-sigma rule
 cleaned_factor_sigma = Winsorizer.sigma_winsorization(factor_exposure, k=3)
 
@@ -237,7 +244,7 @@ Key parameters:
 - `percentile`: truncation percentiles, default `(0.01, 0.99)`
 - `set_outlier_nan`: whether to set outliers to `NaN`
 
-```Python
+```python
 # Truncate at the 1% and 99% percentiles
 cleaned_factor_percentile = Winsorizer.percentile_winsorization(
     factor_exposure, 

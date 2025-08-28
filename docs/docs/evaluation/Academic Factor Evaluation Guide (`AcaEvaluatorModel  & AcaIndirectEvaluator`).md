@@ -1,3 +1,10 @@
+---
+title: Evaluate Academic Factor
+permalink: /evaluate/academic-factor/
+nav_order: 6.1
+parent: Evaluate Factor
+---
+
 # Academic Factor Evaluation Guide (`AcaEvaluatorModel  & AcaIndirectEvaluator`)
 
 
@@ -13,7 +20,7 @@
 
 ### **Classic** **workflow** **(copy-paste ready)**
 
-```Python
+```python
 # 1) Base data
 from firefin.data.gateway import fetch_data
 import pandas as pd
@@ -75,7 +82,7 @@ fm_res = model.run_fama_macbeth_regression()
 > - Subtract the risk-free rate from individual stock returns to get **excess returns** `excess_ret`;
 > - Feed both into `AcaEvaluatorModel`:
 >
-> ```Python
+> ```python
 > basic_test = AcaEvaluatorModel(
 >     factor_portfolio = pb_HML,    # list[pd.Series]
 >     return_adj       = excess_ret # Time × Stock DataFrame
@@ -89,7 +96,7 @@ fm_res = model.run_fama_macbeth_regression()
 
 ### Data preparation example:
 
-```Python
+```python
 # 1) Base data
 from firefin.data.gateway import fetch_data
 import pandas as pd
@@ -126,7 +133,7 @@ pb_HML = [pb_quantile_ret[0].iloc[:, -1]]
 
 **Goal**: Use the `pb_HML` factor portfolio to explain individual stocks’ excess returns `excess_ret`.
 
-```Python
+```python
 from firefin.evaluation.academia.AcaEvaluatorModel import AcaEvaluatorModel
 
 model = AcaEvaluatorModel(
@@ -150,7 +157,7 @@ fm_res = model.run_fama_macbeth_regression()
 
 > Regression result objects typically include: coefficients, intercept (α), residuals, standard errors, t-stats, and R².
 >
-> ```Python
+> ```python
 > # Accessing model outputs
 > ts_res.beta     # factor exposures from time-series regressions
 > ts_res.tvalue   # t-stats for factor exposures
@@ -167,7 +174,7 @@ fm_res = model.run_fama_macbeth_regression()
 
 **Signature**
 
-```Python
+```python
 AcaEvaluatorModel(
     factor_portfolio: list[pd.Series],
     return_adj: pd.DataFrame,
@@ -193,7 +200,7 @@ AcaEvaluatorModel(
 
 ### 4.2 Time-series regression `run_time_series_regression(fit_intercept: bool = True, window = self.window, cov_type = self.cov_type)`
 
-```Python
+```python
 # 1) Time-series regression: rolling coefficients/intercept/residuals/statistics
 ts_res = model.run_time_series_regression(fit_intercept=True)
 ```
@@ -216,7 +223,7 @@ ts_res = model.run_time_series_regression(fit_intercept=True)
 
 - Control via the **constructor**:
 
-```Python
+```python
 # Full-sample once:
 AcaEvaluatorModel(..., all_time_series_regression=True)
 # Rolling 120 periods:
@@ -231,7 +238,7 @@ AcaEvaluatorModel(..., all_time_series_regression=False, time_series_window=120)
 
 ### 4.3 Cross-sectional regression `run_cross_sectional_regression()`
 
-```Python
+```python
 # 2) Cross-sectional regression: explain stock returns each period
 cs_res = model.run_cross_sectional_regression()
 ```
@@ -252,7 +259,7 @@ cs_res = model.run_cross_sectional_regression()
 
 ### 4.4 Fama-MacBeth regression `run_fama_macbeth_regression()`
 
-```Python
+```python
 # 3) Fama-MacBeth: two-step estimation of cross-sectional prices
 fm_res = model.run_fama_macbeth_regression()
 ```
@@ -276,7 +283,7 @@ fm_res = model.run_fama_macbeth_regression()
 
 ### Typical workflow (copy-paste ready)
 
-```Python
+```python
 from firefin.data.gateway import fetch_data
 import pandas as pd
 import numpy as np
@@ -343,7 +350,7 @@ latex_str = indirect_test.export_evaluation_table()
 
 **Signature**
 
-```Python
+```python
 AcaIndirectEvaluator(
     factor_portfolio: list[pd.Series],
     return_adj: pd.DataFrame,
@@ -394,7 +401,7 @@ AcaIndirectEvaluator(
 
 **Signature & parameters**
 
-```Python
+```python
 evaluate_by_other_factors(
     mode: Literal["capm","ff3","ff3_mom","ff5","customize"] = "capm",
     factor2: list[pd.Series] | None = None,
@@ -406,7 +413,7 @@ evaluate_by_other_factors(
 
 **Return values**
 
-```Python
+```python
 coefficient_df : pd.DataFrame   # [alpha, factor betas] for each portfolio at the *last period*
 statistics_df  : pd.DataFrame   # [alpha_t, factor t-values] at the same period
 r2_adj_series  : pd.Series      # adjusted R^2 for each portfolio’s regression (single full-sample)
@@ -422,7 +429,7 @@ r2_adj_series  : pd.Series      # adjusted R^2 for each portfolio’s regression
 
 **Example**
 
-```Python
+```python
 coef, tval, r2a = indirect.evaluate_by_other_factors(mode="ff3_mom")
 # Custom:
 my_factors = [carry, value_signal, quality]; [f.rename(n) for f,n in zip(my_factors,["CARRY","VAL","QTY"])];
@@ -476,7 +483,7 @@ H-L    0.015978
 
 **Signature & parameters**
 
-```Python
+```python
 cumulated_alpha(
     mode: Literal["capm","ff3","ff3_mom","ff5","customize"] = "capm",
     factor2: list[pd.Series] | None = None,
@@ -503,9 +510,8 @@ cumulated_alpha(
 - If the α curve converges to 0 with decreasing volatility ⇒ the abnormal return weakens with a longer sample/more comprehensive benchmarks;
 - If α stays stably positive/negative and significant ⇒ a more credible pricing anomaly or model omission.
 
-![img](https://ncnpoz56ei72.feishu.cn/space/api/box/stream/download/asynccode/?code=OGNmODcwMDMyM2ZkNTlmMmU3ODlmMDVkMjkzOWEyNmVfRmh0Y2FjQWxzV2VPaTdRT2daZnl3NjBOTzlxUGlEV1lfVG9rZW46UHo1S2Jha1dJb2xSell4bFJwemNnN2U4bm1iXzE3NTYzNTA1NTA6MTc1NjM1NDE1MF9WNA)
-
-![img](https://ncnpoz56ei72.feishu.cn/space/api/box/stream/download/asynccode/?code=NDlhOGM0NjEwYjA4MzkzOTFlNDYxYmM5Y2FjMDAzNzlfblJZWEp3TzQ2aDZ6ZGlNZ2tZd2g5WGFOTzlEV280TjNfVG9rZW46WFVCdGI4SlRkb1BCMEV4SklTQ2NFQXo0bmZkXzE3NTYzNTA1NTA6MTc1NjM1NDE1MF9WNA)
+![img](/assets/images/academic_cum_alpha.jpg)
+![img](/assets/images/academic_cumulative_alpha.jpg)
 
 ### 5.5 Method 3: `evaluate_stability(...)` — Rolling GRS robustness
 
@@ -513,7 +519,7 @@ cumulated_alpha(
 
 **Signature & parameters**
 
-```Python
+```python
 evaluate_stability(
     value_weighted: bool = True,                 # not directly used for now; reserved for extensions
     mode: Literal["single","capm","ff3","ff3_mom","ff5"] = "single",
@@ -550,7 +556,7 @@ evaluate_stability(
 
 **Signature & parameters**
 
-```Python
+```python
 export_evaluation_table(
     mode: str = "daily",                      # frequency: daily, monthly, yearly
     customized_factor: list[pd.Series] | None = None,
@@ -574,7 +580,7 @@ export_evaluation_table(
   - `alpha/β` and their t-values for each model;
   - `R²_adj` per model.
 
-![img](https://ncnpoz56ei72.feishu.cn/space/api/box/stream/download/asynccode/?code=YjM1NmVjNTdiZjQ2MWU5Y2RlNjFjZjQ1NTIwMGU4MzBfTWJCc2dXSVV1MnhwMWQ3N3JUZGRLVkJ5YUt4UmhOajVfVG9rZW46S2pGN2JVN3A5b09FTER4bGVaWGNxR3R3bjVlXzE3NTYzNTA1NTA6MTc1NjM1NDE1MF9WNA)
+![img](/assets/images/academic_table.jpg)
 
 ## Other functions
 
@@ -582,7 +588,7 @@ export_evaluation_table(
 
 This project provides convenient constructors for classic academic factors: ff3, ff5, ff3+mom, returning a list of `[pd.Series]` (the project’s standard factor structure).
 
-```Python
+```python
 from firefin.evaluation.academia.AcademicFactors import *
 ff3 = bundle_ff3(stock_return = ret_adj,
     size = mkt_cap,
@@ -608,7 +614,7 @@ ff3_mom = bundle_ff3(stock_return = ret_adj,
 
 For individual academic factors, the project also provides dedicated constructors:
 
-```Python
+```python
 # Market factor
 mkt = market_excess(stock_return = ret_adj, size = mkt_cap, risk_free_rate = risk_free_rate)
 # HML factor
@@ -624,7 +630,7 @@ mom = mom(stock_return = ret_adj, size = mkt_cap, momentum_signal = momentum_sig
 
 This project can run cross-sectional regressions on factors alone and return regression parameters.
 
-```Python
+```python
 from firefin.core.algorithm.cross_sectional_regression import *
 xs=cross_sectional_regression(ff3, excess_ret,cov_type="HAC",window=50)
 ```
@@ -635,7 +641,7 @@ Here you can set the rolling window `window` as needed. `cov_type` specifies the
 
 This project can run standalone Fama-MacBeth regressions on factors and return regression parameters.
 
-```Python
+```python
 from firefin.core.algorithm.fama_macbeth import *
 fm=FamaMacBeth.run_regression(ff3, excess_ret,window=50)
 ```
