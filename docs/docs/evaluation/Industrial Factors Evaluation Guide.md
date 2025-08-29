@@ -116,7 +116,7 @@ evaluator.get_ic(method="spearman", plot=True)
 # methods: Spearman/Kendall/Pearson; the most common is Spearman
 ```
 
-![img](/assets/images/industrial_ic.jpg)
+![img](/fire/assets/images/industrial_ic.jpg)
 
 - IC time series plots (the more stable the better; high IR, high proportion > 0; strong factors typically have average RankIC > 0).
 - Top-left three plots: 20-day moving averages of the IC between the factor values and the 1-, 5-, and 10-day forward returns.
@@ -131,7 +131,7 @@ Get the factor’s grouped return series metrics:
 df_qr = evaluator.get_quantile_returns(5)
 ```
 
-![img](/assets/images/industrial_qr.jpg)
+![img](/fire/assets/images/industrial_qr.jpg)
 
 This figure shows the factor’s quantile returns.
 

@@ -510,8 +510,8 @@ cumulated_alpha(
 - If the α curve converges to 0 with decreasing volatility ⇒ the abnormal return weakens with a longer sample/more comprehensive benchmarks;
 - If α stays stably positive/negative and significant ⇒ a more credible pricing anomaly or model omission.
 
-![img](/assets/images/academic_cum_alpha.jpg)
-![img](/assets/images/academic_cumulative_alpha.jpg)
+![img](/fire/assets/images/academic_cum_alpha.jpg)
+![img](/fire/assets/images/academic_cumulative_alpha.jpg)
 
 ### 5.5 Method 3: `evaluate_stability(...)` — Rolling GRS robustness
 
@@ -580,7 +580,7 @@ export_evaluation_table(
   - `alpha/β` and their t-values for each model;
   - `R²_adj` per model.
 
-![img](/assets/images/academic_table.jpg)
+![img](/fire/assets/images/academic_table.jpg)
 
 ## Other functions
 
