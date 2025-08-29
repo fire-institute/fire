@@ -7,7 +7,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "firefin"
-version = "0.3.0"
+version = "0.3.1"
 description = "The bundled opensource toolkit for book Navigate through the Factor Zoo: The Science of Factor Investing."
 readme = "README.md"
 authors = [{ name = "Renjie Liao", email = "auderson@qq.com" }, { name = "Baochen Qiao", email = "baochenqiao@gmail.com" }]
