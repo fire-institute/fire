@@ -374,3 +374,69 @@ def compute_quantile_returns(
             for period, period_returns in forward_returns.items()
         }
     )
+
+def double_sort_returns_independent(
+    size: pd.DataFrame,
+    x: pd.DataFrame,
+    return_adj: pd.DataFrame,
+    value_weighted: bool = True,
+    market_cap: typing.Optional[pd.DataFrame] = None,
+    size_break: float = 0.5,
+    x_breaks: typing.Tuple[float, float] = (0.3, 0.7),
+    lag_weights : bool = True,
+) -> pd.DataFrame:
+    """
+    用独立 2×3（Size=50%、X=30/70，日频断点）计算六个组合的日收益（列: '1_1'..'2_3'）。
+    """
+
+    def double_sort_labels_independent(
+            size: pd.DataFrame,
+            x: pd.DataFrame,
+            size_break: float = 0.5,
+            x_breaks: typing.Tuple[float, float] = (0.3, 0.7),
+    ) -> pd.DataFrame:
+        """
+        Academic independent 2×3 labels with DAILY breakpoints.
+          - Size: 1=Small (rank_pct <= 0.5), 2=Big (rank_pct > 0.5)
+          - X   : 1=Low (rank_pct <= 0.3), 2=Mid (0.3 < rank_pct <= 0.7), 3=High (rank_pct > 0.7)
+        返回: (Time×Stock) 的字符串标签 DataFrame，取值如 '1_1'..'2_3'。
+        """
+        assert size.index.equals(x.index) and size.columns.equals(x.columns), "size/x must align"
+
+        # 用横截面“秩百分位”做断点，稳健处理并列值；索引与列均保持原样
+        size_rank = size.rank(axis=1, method="first", pct=True)
+        x_rank = x.rank(axis=1, method="first", pct=True)
+
+        # Size 分两组
+        g1 = pd.DataFrame(np.nan, index=size.index, columns=size.columns)
+        g1[size_rank <= size_break] = 1
+        g1[size_rank > size_break] = 2
+
+        # X 分三组
+        lo, hi = x_breaks
+        g2 = pd.DataFrame(np.nan, index=x.index, columns=x.columns)
+        g2[x_rank <= lo] = 1
+        g2[(x_rank > lo) & (x_rank <= hi)] = 2
+        g2[x_rank > hi] = 3
+
+        # 组合成 'i_j' 标签
+        labels = pd.DataFrame(index=size.index, columns=size.columns, dtype=object)
+        mask = g1.notna() & g2.notna()
+
+        g1s = g1.where(mask).astype("Int64").astype(str)  # 用可空整数，允许 NA
+        g2s = g2.where(mask).astype("Int64").astype(str)
+
+        labels[mask] = (g1s + "_" + g2s)[mask]
+        return labels
+
+    assert return_adj.index.equals(size.index) and return_adj.columns.equals(size.columns), "return_adj/size mismatch"
+    assert size.index.equals(x.index) and size.columns.equals(x.columns), "size/x mismatch"
+
+    labels = double_sort_labels_independent(size, x, size_break, x_breaks)
+
+    if value_weighted:
+        assert market_cap is not None, "market_cap required for value-weighted returns"
+        wt = market_cap.shift(1) if lag_weights else market_cap
+        return _compute_weighted_quantile_df(labels, return_adj, wt, reindex=False)
+    else:
+        return _compute_quantile_df(labels, return_adj, reindex=False)

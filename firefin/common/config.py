@@ -6,8 +6,8 @@ import yaml
 import json
 from loguru import logger
 
-# Load configuration from YAML file
-with open(os.path.join(os.path.dirname(__file__), "config.yaml"), "r") as stream:
+# Load configuration from YAML file, windows with default Decode
+with open(os.path.join(os.path.dirname(__file__), "config.yaml"), "r", encoding="utf-8") as stream:
     config = yaml.safe_load(stream)
 
 # Load configuration from YAML file
@@ -17,7 +17,7 @@ with open(os.path.join(os.path.dirname(__file__), "config.yaml"), "r") as stream
 if os.name == "posix":
     DATA_PATH = config.get("paths", {}).get("unix", "~/.fire/data/raw/")
 else:
-    DATA_PATH = config.get("paths", {}).get("windows", "%USERPROFILE%\\.fire\\data\\raw")
+    DATA_PATH = config.get("paths", {}).get("windows", "D:\\Data\\AStockData\\raw")
 
 # resolve ~ and envars
 DATA_PATH = pathlib.Path(DATA_PATH).expanduser().resolve()

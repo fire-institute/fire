@@ -6,7 +6,7 @@ import typing
 import pandas as pd
 
 from ...core.plot import plots
-from ..eva_utils import ForwardReturns, IC, QuantileReturns, compute_ic, compute_quantile_returns
+from ...core.eva_utils import ForwardReturns, IC, QuantileReturns, compute_ic, compute_quantile_returns
 
 __all__ = ["Evaluator"]
 

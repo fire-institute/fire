@@ -11,8 +11,9 @@ import statsmodels.api as sm
 from matplotlib.gridspec import GridSpec
 from numba import njit
 from scipy import stats
+from matplotlib.dates import AutoDateLocator, ConciseDateFormatter
 
-from ...evaluation.eva_utils import PeriodType, IC, QuantileReturns
+from ...core.eva_utils import PeriodType, IC, QuantileReturns
 
 __all__ = [
     "plt_ic",
@@ -467,3 +468,96 @@ def plt_quantile_cumulated_end_returns(
         )
     if show:
         plt.show()
+
+def plot_grs_pval(series: pd.Series, threshold: float = 0.95, ax=None):
+    """
+    Pass in the pd.Series time series grs p value , color it according to the threshold(0,95) and draw a reference line
+    params
+    ----
+    series : pd.Series
+
+    threshold : float
+        default is 0.95
+    ax : matplotlib.axes.Axes | None
+
+    return
+    ----
+    ax : matplotlib.axes.Axes
+    """
+    s = pd.Series(series).copy()
+    try:
+        s.index = pd.to_datetime(s.index)
+    except Exception:
+        pass
+    s = s.sort_index().astype(float)
+
+
+    mask_above = s > threshold
+    s_above = s.where(mask_above)
+    s_below = s.where(~mask_above)
+
+    if ax is None:
+        fig, ax = plt.subplots(figsize=(10, 4))
+
+    ax.axhline(threshold, color="blue", linestyle="--", linewidth=1)
+
+    ax.plot(s_below.index, s_below.values, color="black", linewidth=1)
+    ax.plot(s_above.index, s_above.values, color="red", linewidth=1)
+
+    ax.set_xlabel("time")
+    ax.set_ylabel("grs p value")
+    ax.set_title("grs p value")
+    ax.grid(True, alpha=0.25)
+    ax.margins(x=0.02)
+
+    try:
+        from matplotlib.dates import AutoDateLocator, ConciseDateFormatter
+        locator = AutoDateLocator()
+        ax.xaxis.set_major_locator(locator)
+        ax.xaxis.set_major_formatter(ConciseDateFormatter(locator))
+    except Exception:
+        pass
+
+    return ax
+
+
+def plot_cumulative_alpha(series: pd.Series, title: str = None, figsize=(10, 4), block: bool = True):
+    """
+    传入索引为时间的 pd.Series，画出时间-数值折线图并返回 Figure。
+
+    params
+    ----
+    series : pd.Series
+        time series cumulative alpha
+    title : str, optional
+        factor name
+
+    return
+    ----
+    fig
+    """
+    # 复制并确保索引为 datetime
+    s = pd.Series(series).copy()
+    if not isinstance(s.index, pd.DatetimeIndex):
+        s.index = pd.to_datetime(s.index, errors="coerce")
+    s = s.sort_index()
+
+    # 创建图表
+    fig, ax = plt.subplots(figsize=figsize)
+    ax.plot(s.index, s.values, linewidth=1.2)
+
+    # 轴与网格
+    ax.set_xlabel("Time")
+    ax.set_ylabel(series.name or "cumulative_alpha")
+    if title:
+        ax.set_title(title)
+    ax.grid(True, alpha=0.3)
+    ax.margins(x=0.02)
+
+    # 更友好的时间刻度
+    locator = AutoDateLocator()
+    ax.xaxis.set_major_locator(locator)
+    ax.xaxis.set_major_formatter(ConciseDateFormatter(locator))
+
+    fig.tight_layout()
+    plt.show(block=block)

@@ -3,8 +3,6 @@
 
 from .compute.window import *
 from .data.gateway import fetch_data
-from .evaluation.eva_utils import compute_forward_returns, compute_ic, compute_quantile_returns
+from .core.eva_utils import compute_forward_returns, compute_ic, compute_quantile_returns
 from .evaluation.industry.evaluator import Evaluator
 from .core.plot.plots import plt_ic, plt_quantile_cumulated_end_returns, plt_quantile_cumulative_returns
-from .evaluation.academia.AcaEvaluatorModel import AcaEvaluatorModel
-from .evaluation.academia.AcaEvaluatorModelComparison import AcaEvaluatorModelComparison

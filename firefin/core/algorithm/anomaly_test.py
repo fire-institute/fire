@@ -3,7 +3,7 @@ from __future__ import annotations
 import pandas as pd
 from typing import List, Optional, Union
 
-from ...core.algorithm.regression import _regression, RegressionResult
+from .regression import _regression, RegressionResult
 from ..eva_utils import QuantileReturns
 
 

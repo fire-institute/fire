@@ -9,8 +9,8 @@ focuses on clarity, documentation, and best practices for financial research.
 import typing
 import numpy as np
 import pandas as pd
-from ...core.algorithm.newey_west_ttest_1samp import NeweyWestTTest
-from ..eva_utils import factor_to_quantile, factor_to_quantile_dependent_double_sort
+from .newey_west_ttest_1samp import NeweyWestTTest
+from ..eva_utils import factor_to_quantile, factor_to_quantile_dependent_double_sort,double_sort_returns_independent
 from ..eva_utils import _compute_quantile_df, _compute_weighted_quantile_df
 from ..eva_utils import ForwardReturns, QuantileReturns
 
@@ -165,7 +165,181 @@ class PortfolioSort:
             return combined_sorts
 
         return QuantileReturns(portfolio_returns)
+    
+    @staticmethod
+    def double_sort_return_adj_academic(
+            size: pd.DataFrame,
+            x: pd.DataFrame,
+            return_adj: pd.DataFrame,
+            value_weighted: bool = True,
+            market_cap: pd.DataFrame | None = None,
+            size_break: float = 0.5,
+            x_breaks: typing.Tuple[float, float] = (0.3, 0.7),
+            lag_weights: bool = True,
+    ):
+        """
+        Academic independent 2×3 (Size=50%, X=30/70) with DAILY breakpoints.
+        return QuantileReturns {0: DataFrame}；列为 '1_1'..'2_3'。
+        """
+        portfolio_returns = double_sort_returns_independent(
+            size=size,
+            x=x,
+            return_adj=return_adj,
+            value_weighted=value_weighted,
+            market_cap=market_cap,
+            size_break=size_break,
+            x_breaks=x_breaks,
+            lag_weights=lag_weights,
+        )
+        return QuantileReturns({0: portfolio_returns})
 
+
+    @staticmethod
+    def single_sort_return_adj(
+            factor: pd.DataFrame,
+            return_adj: pd.DataFrame,
+            quantiles: int = 5,
+            value_weighted: bool = True,
+            get_quantile_sorts: bool = False,
+            market_cap: pd.DataFrame | None = None,
+    ) -> typing.Union[QuantileReturns, pd.DataFrame]:
+        """
+        Perform a single portfolio sort and compute average returns for each
+        quantile using an already‑aligned `return_adj` matrix (Time × Stock).
+
+        Parameters
+        ----------
+        factor : DataFrame
+            Characteristic exposures, shape (Time × Stock).
+        return_adj : DataFrame
+            Adjusted returns, shape (Time × Stock).
+        quantiles : int
+            Number of quantile groups.
+        value_weighted : bool, default True
+            Use value‑weighted (market‑cap) returns if True; equal‑weighted otherwise.
+        get_quantile_sorts : bool, default False
+            If True, return only the quantile assignment DataFrame.
+        market_cap : DataFrame | None
+            Market capitalisations, required when `value_weighted=True`.
+
+        Returns
+        -------
+        QuantileReturns
+            key=0
+            Columns are 1‥Q quantile returns plus “H‑L”; rows are dates.
+        """
+        # 1. Assign stocks to quantiles
+        quantile_sorts = factor_to_quantile(factor, quantiles)
+
+        if get_quantile_sorts:
+            return quantile_sorts
+
+        # 2. Compute portfolio returns
+        if value_weighted:
+            portfolio_returns = _compute_weighted_quantile_df(
+                quantile_sorts,
+                return_adj,
+                market_cap,
+                quantiles=quantiles,
+            )
+        else:
+            portfolio_returns = _compute_quantile_df(
+                quantile_sorts,
+                return_adj,
+                quantiles=quantiles,
+            )
+
+        # 3. High–Low hedge portfolio
+        portfolio_returns["H-L"] = (
+                portfolio_returns[quantiles] - portfolio_returns[1]
+        )
+
+        return QuantileReturns({0: portfolio_returns})
+    
+
+#2. Double sort based on return_adj
+  
+    @staticmethod
+    def double_sort_return_adj(
+            factor1: pd.DataFrame,
+            factor2: pd.DataFrame,
+            return_adj: pd.DataFrame,
+            quantiles: tuple[int, int] = (5, 5),
+            dependent: bool = False,
+            value_weighted: bool = True,
+            get_quantile_sorts: bool = False,
+            market_cap: pd.DataFrame | None = None,
+    ) -> typing.Union[QuantileReturns, pd.DataFrame]:
+        """
+        Perform a double portfolio sort on two characteristics and compute
+        average returns for each (q1, q2) group using `return_adj`.
+
+        Parameters
+        ----------
+        factor1, factor2 : DataFrame
+            Characteristic exposures, shape (Time × Stock). Must share identical
+            index and columns.
+        return_adj : DataFrame
+            Adjusted returns, shape (Time × Stock).
+        quantiles : tuple[int, int], default (5, 5)
+            Number of groups for (factor1, factor2).
+        dependent : bool, default False
+            If True, use dependent (conditional) sorting; otherwise independent.
+        value_weighted : bool, default True
+            Use value‑weighted (market‑cap) returns if True; equal‑weighted otherwise.
+        get_quantile_sorts : bool, default False
+            If True, return only the combined quantile assignment DataFrame.
+        market_cap : DataFrame | None
+            Market capitalisations, required when `value_weighted=True`.
+
+        Returns
+        -------
+        QuantileReturns
+            key=0
+            Columns are “q1_q2” groups plus “HH‑LL”; rows are dates.
+        """
+        assert factor1.index.equals(factor2.index) and factor1.columns.equals(
+            factor2.columns
+        ), "factor1 and factor2 must have the same index and columns"
+
+        # 1. Assign stocks to combined quantiles
+        if dependent:
+            combined_sorts = factor_to_quantile_dependent_double_sort(
+                factor1, factor2, quantiles
+            )
+        else:
+            q1 = factor_to_quantile(factor1, quantiles[0]).astype(int)
+            q2 = factor_to_quantile(factor2, quantiles[1]).astype(int)
+            combined_sorts = q1.astype(str) + "_" + q2.astype(str)
+
+        if get_quantile_sorts:
+            return combined_sorts
+
+        # 2. Compute portfolio returns
+        if value_weighted:
+            portfolio_returns = _compute_weighted_quantile_df(
+                combined_sorts,
+                return_adj,
+                market_cap,
+                reindex=False,
+                quantiles=quantiles[0] * quantiles[1],
+            )
+        else:
+            portfolio_returns = _compute_quantile_df(
+                combined_sorts,
+                return_adj,
+                reindex=False,
+                quantiles=quantiles[0] * quantiles[1],
+            )
+
+        # 3. High‑High minus Low‑Low hedge
+        hh_label = f"{quantiles[0]}_{quantiles[1]}"
+        portfolio_returns["HH-LL"] = portfolio_returns[hh_label] - portfolio_returns[
+            "1_1"
+        ]
+
+        return QuantileReturns({0: portfolio_returns})
+    
     @staticmethod
     def get_statistics(result: QuantileReturns, quantiles: int) -> StatisticResults:
         """
